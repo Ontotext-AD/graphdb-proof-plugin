@@ -60,11 +60,11 @@ public class TestExplainWithProofPlugin {
 		sail.setParameters(params);
 		SailRepository rep = new SailRepository(sail);
 		rep.setDataDir(tmpFolder.newFolder("proof-plugin-explain"));
-		rep.initialize();
+		rep.init();
 		try {
 			RepositoryConnection conn = rep.getConnection();
 			try {
-				String dataFile = Thread.currentThread().getContextClassLoader().getResource("provenance-gdb-826/provenance_sample.trig").getFile();
+				String dataFile = Thread.currentThread().getContextClassLoader().getResource("proof/sample.trig").getFile();
 				conn.add(new File(dataFile), "http://base.uri", RDFFormat.TRIG);
 				conn.add(OWL.CLASS, RDFS.SUBCLASSOF, RDFS.CLASS);
 				TupleQueryResult res = conn.prepareTupleQuery(query).evaluate();
@@ -72,7 +72,6 @@ public class TestExplainWithProofPlugin {
 				int count = 0;
 				while (res.hasNext()) {
 					BindingSet bs = res.next();
-					System.out.println(bs);
 					Binding cB = bs.getBinding("ctx");
 					assertNotNull("Expected object to be always bound", cB);
 					assertNotNull("Expected object to be not null", cB.getValue());
@@ -89,6 +88,5 @@ public class TestExplainWithProofPlugin {
 			rep.shutDown();
 		}
 	}
-
 }
 

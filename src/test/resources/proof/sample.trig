@@ -1,0 +1,35 @@
+@prefix food: <http://www.w3.org/TR/2003/PR-owl-guide-20031209/food#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix vin: <http://www.w3.org/TR/2003/PR-owl-guide-20031209/wine#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+
+food:Ontology {
+
+	food:EdibleThing a owl:Class ;
+		rdfs:label "Edible thing"@en .
+
+	food:Fruit rdfs:label "fruit"@en ;
+    	rdfs:comment "In botany, a fruit is the seed-bearing structure in flowering plants formed from the ovary after flowering";
+    	rdfs:subClassOf food:EdibleThing.
+
+	food:Grape rdfs:label "grape"@en ;
+    	rdfs:comment "A grape is a fruiting berry of the deciduous woody vines of the botanical genus Vitis";
+    	rdfs:subClassOf food:Fruit.
+}
+
+vin:Ontology {
+	
+	vin:Wine a owl:Class ;
+		rdfs:label "wine"@en ;
+    	rdfs:comment "Wine is an alcoholic beverage made from fermented grapes".
+
+	vin:Bordeaux rdfs:label "white wine"@en;
+		rdfs:comment "A wine originating from Bordeaux";
+    	rdfs:subClassOf vin:Wine.
+
+	vin:WhiteBordeaux rdfs:label "white Bordeaux"@en ;
+    	rdfs:comment "A white wine originating from Bordeaux and made from Semillon or Sauvignon Blanc grapes";
+    	rdfs:subClassOf vin:Bordeaux.
+}
