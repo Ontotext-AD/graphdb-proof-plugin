@@ -10,8 +10,9 @@
       <outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>
       <outputDirectory>/</outputDirectory>
       <useProjectArtifact>true</useProjectArtifact>
+      <useTransitiveDependencies>false</useTransitiveDependencies>
       <excludes>
-        <exclude>org.slf4j:*</exclude>
+	<exclude>com.ontotext.graphdb:*</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>
