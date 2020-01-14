@@ -298,7 +298,7 @@ The second premise relates ```Merlo``` with some 'weird' predicate to the node f
 ```
     Id: owl_typeByIntersect_1
 
-      a <onto:_allTypes> b
+      a <onto:_allTypes> b  [Context <onto:_typeByInt>]
       c <owl:intersectionOf> b
     ------------------------------------
       a <rdf:type> c
@@ -339,9 +339,9 @@ Id: owl_typeByIntersect_3
       a <rdf:first> b
       d <rdf:type> b
       a <rdf:rest> c
-      d <onto:_allTypes> c
+      d <onto:_allTypes> c  [Context <onto:_typeByInt>]
     ------------------------------------
-      d <onto:_allTypes> a
+      d <onto:_allTypes> a  [Context <onto:_typeByInt>]
 ```
 where we have 2 explicit and two inferred statements matching the premises ```(Merlo, _allTypes, _:node2)``` and ```(Merlo, type, RedThing)```
 
@@ -439,7 +439,7 @@ The owl_typeByIntersect_2 rule looks like:
       a <rdf:rest> <rdf:nil>
       c <rdf:type> b
     ------------------------------------
-      c <onto:_allTypes> a
+      c <onto:_allTypes> a  [Context <onto:_typeByInt>]
 ```
 where 'c' is bound to ```Merlo``` and 'b' to ```Wine```
 
