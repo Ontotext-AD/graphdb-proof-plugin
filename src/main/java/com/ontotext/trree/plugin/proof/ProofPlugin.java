@@ -23,6 +23,7 @@ import com.ontotext.trree.sdk.Preprocessor;
 import com.ontotext.trree.sdk.Request;
 import com.ontotext.trree.sdk.RequestContext;
 import com.ontotext.trree.sdk.RequestOptions;
+import com.ontotext.trree.sdk.StatelessPlugin;
 import com.ontotext.trree.sdk.StatementIterator;
 import com.ontotext.trree.sdk.SystemPlugin;
 import com.ontotext.trree.sdk.SystemPluginOptions;
@@ -53,7 +54,7 @@ import com.ontotext.trree.sdk.SystemPluginOptions.Option;
  * @author damyan.ognyanov
  *
  */
-public class ProofPlugin extends PluginBase implements SystemPlugin, Preprocessor, PatternInterpreter, ListPatternInterpreter {
+public class ProofPlugin extends PluginBase implements StatelessPlugin, SystemPlugin, Preprocessor, PatternInterpreter, ListPatternInterpreter {
 	// private key to store the connection in the request context
 	private static final String REPOSITORY_CONNECTION = "repconn";
 	// private key to store the inferencer in the request context
