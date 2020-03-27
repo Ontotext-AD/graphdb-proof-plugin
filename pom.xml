@@ -192,6 +192,7 @@
 		<connection>scm:git:git@github.com:Ontotext-AD/graphdb-proof-plugin.git</connection>
 		<developerConnection>scm:git:git@github.com:Ontotext-AD/graphdb-proof-plugin.git</developerConnection>
 		<url>https://github.com/Ontotext-AD/graphdb-proof-plugin</url>
-	</scm>
+	  <tag>HEAD</tag>
+  </scm>
 
 </project>
