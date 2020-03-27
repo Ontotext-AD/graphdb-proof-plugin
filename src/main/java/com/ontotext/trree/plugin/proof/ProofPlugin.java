@@ -39,8 +39,8 @@ import com.ontotext.trree.sdk.SystemPluginOptions.Option;
  *
  *   if we like to explain an inferred statement: 
  *
- *   PREFIX pr: <http://www.ontotext.com/proof/>
- *	 PREFIX onto: <http://www.ontotext.com/> 
+ *   PREFIX pr: http://www.ontotext.com/proof/
+ *	 PREFIX onto: http://www.ontotext.com/
  *   select * {
  *   	graph onto:implicit {?s ?p ?o}
  *      ?solution pr:explain (?s ?p ?o) .
