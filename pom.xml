@@ -12,6 +12,7 @@
 		<graphdb.version>9.2.0-RC2</graphdb.version>
 
 		<java.level>1.8</java.level>
+		<dependency.check.version>6.2.2</dependency.check.version>
 
 		<internal.repo>http://maven.ontotext.com/content/repositories/owlim-releases</internal.repo>
 		<snapshots.repo>http://maven.ontotext.com/content/repositories/owlim-snapshots</snapshots.repo>
@@ -84,6 +85,24 @@
 				<configuration>
 					<additionalparam>-Xdoclint:none</additionalparam>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.owasp</groupId>
+				<artifactId>dependency-check-maven</artifactId>
+				<version>${dependency.check.version}</version>
+				<configuration>
+					<failBuildOnCVSS>7</failBuildOnCVSS>
+					<skipProvidedScope>true</skipProvidedScope>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>none</phase>
+						<goals>
+							<goal>aggregate</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
