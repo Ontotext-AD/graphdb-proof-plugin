@@ -132,7 +132,7 @@
 			<groupId>com.ontotext.graphdb</groupId>
 			<artifactId>graphdb-free-runtime</artifactId>
 			<version>${graphdb.version}</version>
-                        <scope>test</scope>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
