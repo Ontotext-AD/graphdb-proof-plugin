@@ -9,7 +9,7 @@
 	<description>Proof plugin for GraphDB</description>
 
 	<properties>
-		<graphdb.version>9.2.0-RC2</graphdb.version>
+		<graphdb.version>10.0.0-RDF4J4-BOOTSTRAP1</graphdb.version>
 
 		<java.level>1.8</java.level>
 		<dependency.check.version>6.2.2</dependency.check.version>
@@ -130,7 +130,7 @@
 
 		<dependency>
 			<groupId>com.ontotext.graphdb</groupId>
-			<artifactId>graphdb-free-runtime</artifactId>
+			<artifactId>graphdb-runtime</artifactId>
 			<version>${graphdb.version}</version>
 			<scope>provided</scope>
 		</dependency>
