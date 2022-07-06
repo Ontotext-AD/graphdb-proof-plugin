@@ -6,6 +6,8 @@ import java.util.Iterator;
 
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.ontotext.trree.AbstractInferencer;
 import com.ontotext.trree.AbstractRepositoryConnection;
@@ -55,6 +57,7 @@ import com.ontotext.trree.sdk.SystemPluginOptions.Option;
  *
  */
 public class ProofPlugin extends PluginBase implements StatelessPlugin, SystemPlugin, Preprocessor, PatternInterpreter, ListPatternInterpreter {
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	// private key to store the connection in the request context
 	private static final String REPOSITORY_CONNECTION = "repconn";
 	// private key to store the inferencer in the request context
@@ -119,7 +122,6 @@ public class ProofPlugin extends PluginBase implements StatelessPlugin, SystemPl
 	public StatementIterator interpret(long subject, long predicate, long object, long context,
 									   PluginConnection pluginConnection, RequestContext requestContext) {
 		
-		// check if the predicate is one of the plugin's ones
 		if (predicate != explainId && predicate != ruleId && predicate != contextId &&
 				predicate != subjId && predicate != predId && predicate != objId)
 			return null;
@@ -334,6 +336,42 @@ public class ProofPlugin extends PluginBase implements StatelessPlugin, SystemPl
 				this.rule = rule;
 				this.premises = premises;
 			}
+			public String toString() {
+				StringBuilder builder = new StringBuilder();
+				builder.append("rule:").append(rule).append("\n");
+				for (long[] p : premises) {
+					builder.append(p[0]).append(",").append(p[1]).append(",");
+					builder.append(p[2]).append(",").append(p[3]).append("\n");
+				}
+				return builder.toString();
+			}
+			@Override
+			public boolean equals(Object oObj) {
+				if (!(oObj instanceof Solution))
+					return false;
+				Solution other = (Solution)oObj;
+				if (other == this)
+					return true;
+				if (!other.rule.equals(this.rule))
+					return false;
+				
+				if (other.premises.size() != this.premises.size())
+					return false;
+
+				//crosscheck
+				for (long[] p : this.premises) {
+					boolean exists = false;
+					for (long[] o : other.premises) {
+						if (o[0] == p[0] && o[1] == p[1] && o[2] == p[2] && o[3]== p[3] && o[4] == p[4]) {
+							exists = true;
+							break;
+						}
+					}
+					if (!exists)
+						return false;
+				}
+				return true;
+			}
 		}
 		// the request context that stores the instance and the options for that iterator (current inferencer, repository connection etc)
 		ContextImpl ctx;
@@ -399,31 +437,45 @@ public class ProofPlugin extends PluginBase implements StatelessPlugin, SystemPl
 		}
 		@Override
 		public boolean report(String ruleName, QueryResultIterator q) {
-			ArrayList<long[]> aSolution = new ArrayList<long[]>();
-			if (q instanceof StatementSource) {
-				StatementSource source = (StatementSource)q;
-				Iterator<StatementIdIterator> sol = source.solution();
-				boolean isSame = false;
-				while (sol.hasNext()) {
-					StatementIdIterator iter = sol.next();
-					// try finding an existing explicit or in-context with same subj, pred and obj
-					try(StatementIdIterator ctxIter = conn.getStatements(iter.subj, iter.pred, iter.obj, true, 0, contextMask)) {
-						while (ctxIter.hasNext()) {
-							if (ctxIter.context != SystemGraphs.EXPLICIT_GRAPH.getId()) {
-								iter.context = ctxIter.context;
-								iter.status = ctxIter.status;
-								break;
+			logger.debug("report rule {} for {},{},{}", ruleName, this.subj, this.pred, this.obj);
+			while (q.hasNext()) {
+				if (q instanceof StatementSource) {
+					StatementSource source = (StatementSource)q;
+					Iterator<StatementIdIterator> sol = source.solution();
+					boolean isSame = false;
+					ArrayList<long[]> aSolution = new ArrayList<long[]>();
+					while (sol.hasNext()) {
+						StatementIdIterator iter = sol.next();
+						// try finding an existing explicit or in-context with same subj, pred and obj
+						try(StatementIdIterator ctxIter = conn.getStatements(iter.subj, iter.pred, iter.obj, true, 0, contextMask)) {
+							while (ctxIter.hasNext()) {
+								if (ctxIter.context != SystemGraphs.EXPLICIT_GRAPH.getId()) {
+									iter.context = ctxIter.context;
+									iter.status = ctxIter.status;
+									break;
+								}
+								ctxIter.next();
 							}
-							ctxIter.next();
+							ctxIter.close();
 						}
-						ctxIter.close();
+						if (iter.subj == this.subj && iter.pred == this.pred && iter.obj == this.obj)
+							isSame = true;
+						aSolution.add(new long[] {iter.subj, iter.pred, iter.obj, iter.context, iter.status});
 					}
-					if (iter.subj == this.subj && iter.pred == this.pred && iter.obj == this.obj)
-						isSame = true;
-					aSolution.add(new long[] {iter.subj, iter.pred, iter.obj, iter.context, iter.status});
+					Solution solution = new Solution(ruleName, aSolution);
+					logger.debug("isSelfReferentioal {} for solution {}", isSame, solution);
+					if (!isSame) {
+						if (!solutions.contains(solution)) {
+							logger.debug("added");
+							solutions.add(solution);
+						} else {
+							logger.debug("already added");
+						}
+					} else {
+						logger.debug("not added - self referential");
+					}
 				}
-				if (!isSame)
-					solutions.add(new Solution(ruleName, aSolution));
+				q.next();
 			}
 			return false;
 		}

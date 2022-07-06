@@ -78,8 +78,8 @@ public class TestExplainWithProofPlugin {
 					ctxs.add(cB.getValue());
 					count ++;
 				}
-				assertEquals("total iterations",11,  ctxs.size());
-				assertEquals("total results", 13, count);
+				assertEquals("total iterations",12,  ctxs.size());
+				assertEquals("total results", 16, count);
 				res.close();
 			} finally {
 				conn.close();
