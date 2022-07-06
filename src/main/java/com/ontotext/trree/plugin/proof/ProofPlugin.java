@@ -362,7 +362,7 @@ public class ProofPlugin extends PluginBase implements StatelessPlugin, SystemPl
 				for (long[] p : this.premises) {
 					boolean exists = false;
 					for (long[] o : other.premises) {
-						if (o[0] == o[0] && o[1] == p[1] && o[2] == p[2] && o[3]== p[3] && o[4] == p[4]) {
+						if (o[0] == p[0] && o[1] == p[1] && o[2] == p[2] && o[3]== p[3] && o[4] == p[4]) {
 							exists = true;
 							break;
 						}

@@ -88,11 +88,5 @@ public class TestExplainWithProofPlugin {
 			rep.shutDown();
 		}
 	}
-	
-	@Test
-	public void testFSIssueInference() throws RepositoryException, MalformedQueryException, QueryEvaluationException, RDFParseException, IOException {
-		
-	}
-	
 }
 
