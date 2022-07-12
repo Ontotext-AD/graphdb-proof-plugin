@@ -9,7 +9,7 @@
 	<description>Proof plugin for GraphDB</description>
 
 	<properties>
-		<graphdb.version>10.0.0-RDF4J4-BOOTSTRAP1</graphdb.version>
+		<graphdb.version>10.0.0</graphdb.version>
 
 		<java.level>1.8</java.level>
 		<dependency.check.version>6.2.2</dependency.check.version>
@@ -45,6 +45,9 @@
 				<version>3.0.0-M3</version>
 				<configuration>
 					<argLine>${argLine} ${extraArgLine}</argLine>
+					<systemPropertyVariables>
+						<graphdb.stats.default>disabled</graphdb.stats.default>
+					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 

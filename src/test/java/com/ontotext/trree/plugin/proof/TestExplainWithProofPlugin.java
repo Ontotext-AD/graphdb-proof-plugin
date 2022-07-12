@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import com.ontotext.graphdb.Config;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
@@ -22,36 +23,48 @@ import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFParseException;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import com.ontotext.test.TemporaryLocalFolder;
 import com.ontotext.trree.OwlimSchemaRepository;
 import com.ontotext.trree.plugin.proof.ProofPlugin;
 
 public class TestExplainWithProofPlugin {
-	@Rule
-	public TemporaryLocalFolder tmpFolder = new TemporaryLocalFolder();
-	
-	String query = "PREFIX pr: <http://www.ontotext.com/proof/>\r\n" + 
-			"PREFIX food: <http://www.w3.org/TR/2003/PR-owl-guide-20031209/food#>\r\n" + 
-			"PREFIX onto: <http://www.ontotext.com/>\r\n" + 
-			"\r\n" + 
-			"select ?ctx ?s ?p ?o ?rule ?context ?subj ?pred ?obj\r\n" + 
-			"from named onto:implicit \r\n" + 
-			"from named onto:explicit \r\n" + 
+	@ClassRule
+	public static TemporaryLocalFolder tmpFolder = new TemporaryLocalFolder();
+
+	String query = "PREFIX pr: <http://www.ontotext.com/proof/>\r\n" +
+			"PREFIX food: <http://www.w3.org/TR/2003/PR-owl-guide-20031209/food#>\r\n" +
+			"PREFIX onto: <http://www.ontotext.com/>\r\n" +
+			"\r\n" +
+			"select ?ctx ?s ?p ?o ?rule ?context ?subj ?pred ?obj\r\n" +
+			"from named onto:implicit \r\n" +
+			"from named onto:explicit \r\n" +
 			"{\r\n" +
 			"#		values (?s ?p ?o) {(food:Fruit UNDEF UNDEF)} \r\n"+
 			"		graph ?g {?s ?p ?o} \r\n"+
 			"	filter(strstarts(str(?s),str(food:)))\r\n" +
-			"     ?ctx pr:explain (?s ?p ?o) .\r\n" + 
-			"     ?ctx pr:rule ?rule .\r\n" + 
-			"     ?ctx pr:subject ?subj .\r\n" + 
-			"     ?ctx pr:predicate ?pred .\r\n" + 
-			"     ?ctx pr:object ?obj .\r\n" + 
-			"     ?ctx pr:context ?context .\r\n" + 
-			"}\r\n" + 
-			""; 
+			"     ?ctx pr:explain (?s ?p ?o) .\r\n" +
+			"     ?ctx pr:rule ?rule .\r\n" +
+			"     ?ctx pr:subject ?subj .\r\n" +
+			"     ?ctx pr:predicate ?pred .\r\n" +
+			"     ?ctx pr:object ?obj .\r\n" +
+			"     ?ctx pr:context ?context .\r\n" +
+			"}\r\n" +
+			"";
+
+	@BeforeClass
+	public static void setWorkDir() {
+		System.setProperty("graphdb.home.work", String.valueOf(tmpFolder.getRoot()));
+		Config.reset();
+	}
+
+	@AfterClass
+	public static void resetWorkDir() {
+		System.clearProperty("graphdb.home.work");
+		Config.reset();
+	}
+
 	@Test
 	public void testBasicInference() throws RepositoryException, MalformedQueryException, QueryEvaluationException, RDFParseException, IOException {
 		Map<String, String> params = new HashMap<String, String>();
