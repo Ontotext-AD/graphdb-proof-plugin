@@ -115,7 +115,7 @@
 		<repository>
 			<id>owlim-releases</id>
 			<name>GraphDB Releases</name>
-			<url>http://maven.ontotext.com/repository/owlim-releases</url>
+			<url>https://maven.ontotext.com/repository/owlim-releases</url>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
@@ -136,6 +136,13 @@
 			<artifactId>graphdb-runtime</artifactId>
 			<version>${graphdb.version}</version>
 			<scope>provided</scope>
+			<!-- Temporary workaround for missing Ontop dependencies for Ontotext build of Ontop -->
+			<exclusions>
+				<exclusion>
+					<groupId>it.unibz.inf.ontop</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -143,6 +150,13 @@
 			<artifactId>graphdb-tests-base</artifactId>
 			<scope>test</scope>
 			<version>${graphdb.version}</version>
+			<!-- Temporary workaround for missing Ontop dependencies for Ontotext build of Ontop -->
+			<exclusions>
+				<exclusion>
+					<groupId>it.unibz.inf.ontop</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
