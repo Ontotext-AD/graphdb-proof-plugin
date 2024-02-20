@@ -9,7 +9,7 @@
 	<description>Proof plugin for GraphDB</description>
 
 	<properties>
-		<graphdb.version>10.0.0</graphdb.version>
+		<graphdb.version>10.6.1</graphdb.version>
 
 		<java.level>1.8</java.level>
 		<dependency.check.version>6.2.2</dependency.check.version>
