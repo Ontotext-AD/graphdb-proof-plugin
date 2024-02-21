@@ -447,7 +447,7 @@ public class ProofPlugin extends PluginBase implements StatelessPlugin, SystemPl
 					while (sol.hasNext()) {
 						StatementIdIterator iter = sol.next();
 						// try finding an existing explicit or in-context with same subj, pred and obj
-						try(StatementIdIterator ctxIter = conn.getStatements(iter.subj, iter.pred, iter.obj, true, 0, contextMask)) {
+						try(StatementIdIterator ctxIter = conn.getStatements(iter.subj, iter.pred, iter.obj, 0, contextMask)) {
 							while (ctxIter.hasNext()) {
 								if (ctxIter.context != SystemGraphs.EXPLICIT_GRAPH.getId()) {
 									iter.context = ctxIter.context;
