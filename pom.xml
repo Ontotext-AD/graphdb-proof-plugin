@@ -14,8 +14,8 @@
 		<java.level>1.8</java.level>
 		<dependency.check.version>6.2.2</dependency.check.version>
 
-		<internal.repo>http://maven.ontotext.com/content/repositories/owlim-releases</internal.repo>
-		<snapshots.repo>http://maven.ontotext.com/content/repositories/owlim-snapshots</snapshots.repo>
+		<internal.repo>https://maven.ontotext.com/content/repositories/owlim-releases</internal.repo>
+		<snapshots.repo>https://maven.ontotext.com/content/repositories/owlim-snapshots</snapshots.repo>
 
 		<!-- Empty defaults to keep things happy, argLine can be overridden on command line,
             extraArgLine may be overridden by one of the profiles. -->
