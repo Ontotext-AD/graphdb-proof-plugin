@@ -1,0 +1,273 @@
+@Library("ontotext-platform@v0.1.57") _
+
+pipeline {
+  agent {
+    label 'aws-large'
+  }
+
+  tools {
+    maven 'maven3'
+  }
+
+  options {
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    timeout(time: 150, unit: 'MINUTES')
+    timestamps()
+  }
+
+  parameters {
+    gitParameter(
+      name: 'GIT_BRANCH',
+      type: 'PT_BRANCH',
+      branchFilter: 'origin/(.*)',
+      quickFilterEnabled: true,
+      defaultValue: 'master',
+      description: 'Git branch to build'
+    )
+    string(
+      name: 'releaseVersion',
+      defaultValue: params.releaseVersion ? params.releaseVersion : '',
+      description: 'Version tag for the release artifact (e.g. 1.2.0). Leave empty to skip the release stages.'
+    )
+    string(
+      name: 'developmentVersion',
+      defaultValue: params.developmentVersion ? params.developmentVersion : '',
+      description: 'Next development version after the release (e.g. 1.3-SNAPSHOT). Passed to Maven release:prepare as -DdevelopmentVersion.'
+    )
+    booleanParam(
+      name: 'skipTests',
+      defaultValue: true,
+      description: 'Skip all unit and functional tests.'
+    )
+    string(
+      name: 'SLACK_CHANNEL',
+      defaultValue: '#graphdb-notifications',
+      description: 'Slack channel for build success and failure notifications (e.g. #graphdb-notifications).'
+    )
+  }
+
+  environment {
+    KEEPER_CREDENTIALS = 'ksm-jenkins'
+    // GitHub bot account, same record as graphdb-workbench. Only used for the commit author here;
+    // the push itself is done over SSH with the agent's key, like graphdb-workbench does.
+    KEEPER_GIT_RELEASE_RECORD = '8hm1g9HCfBPgoWAmpiHn6w'
+    KEEPER_NEXUS_RECORD = 'xRckZaBDxYhmpMgsaT4tCg'
+    KEEPER_M2_SETTINGS_RECORD = 'keeper://w6o5mGXWgN7zNvrr6K7QGQ/file/settings.xml'
+    KEEPER_NVD_API_KEY_RECORD = 'ejsvY-w_afWMP3gpKMJoOA'
+    CACHE_IMAGE = 'docker-registry.ontotext.com/mvn-dependency-check-cache:latest'
+  }
+
+  stages {
+    stage('Download Maven settings') {
+      steps {
+        withKsm(application: [[credentialsId: env.KEEPER_CREDENTIALS, secrets: [
+          [destination: 'file', envVar: '', filePath: 'settings.xml', notation: env.KEEPER_M2_SETTINGS_RECORD]
+        ]]]) {
+          sh """
+            mkdir -p ${WORKSPACE}/.m2
+            cp ${WORKSPACE}/settings.xml ${WORKSPACE}/.m2/settings.xml
+          """
+        }
+      }
+    }
+
+    stage('Extract NVD DB from cache image') {
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+          sh '''#!/usr/bin/env bash
+            set -euo pipefail
+            nvd_src="/root/.m2/repository/org/owasp/dependency-check-data"
+            mkdir -p "${WORKSPACE}/dependency-check-data"
+            docker pull "${CACHE_IMAGE}"
+            container_id=$(docker create "${CACHE_IMAGE}" true)
+            docker cp "${container_id}:${nvd_src}/." "${WORKSPACE}/dependency-check-data/"
+            docker rm -f "${container_id}"
+            ls -lh "${WORKSPACE}/dependency-check-data/"
+          '''
+        }
+      }
+    }
+
+    stage('Build and check') {
+      when {
+        expression { params.releaseVersion?.trim() }
+      }
+      steps {
+        configFileProvider([configFile(fileId: '1d10db5e-7914-4a7a-bb32-f9b238b1e41c', targetLocation: 'graphdb-license-base64')]) {
+          withDockerContainer(image: 'docker-registry.ontotext.com/jenkins-builder:0.2-jdk25', args: "-w ${WORKSPACE}") {
+            withKeeper(credentials: env.KEEPER_CREDENTIALS, envs: [
+              [record: env.KEEPER_NVD_API_KEY_RECORD, prefix: 'NVD_API_KEY', fields: ['note']]
+            ]) {
+            withEnv(['JAVA_HOME=/opt/java/openjdk']) {
+              sh """
+                shortBranch="\$(echo "\${GIT_BRANCH}" | sed 's|^origin/||')"
+                git checkout -f -B "\${shortBranch}" 2>/dev/null || git checkout "\${shortBranch}"
+                base64 -d < graphdb-license-base64 > graphdb.license
+                mvn clean release:clean \\
+                  -Dmaven.repo.local=${WORKSPACE}/.m2/repository \\
+                  -s ${WORKSPACE}/.m2/settings.xml
+                mvn clean deploy -U ${params.skipTests ? '-DskipTests' : ''} \\
+                  -Dmaven.repo.local=${WORKSPACE}/.m2/repository \\
+                  -Dgraphdb.license.file=${env.WORKSPACE}/graphdb.license \\
+                  -s ${WORKSPACE}/.m2/settings.xml
+                mvn dependency-check:aggregate -fn \\
+                  -DnvdApiKey="\$NVD_API_KEY_NOTE" \\
+                  -DdataDirectory=${env.WORKSPACE}/dependency-check-data \\
+                  -Dmaven.repo.local=${WORKSPACE}/.m2/repository \\
+                  -s ${WORKSPACE}/.m2/settings.xml
+              """
+              catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                sh '''
+                  ! grep -Eq '<span id="vulnerableCount">[1-9][0-9]*</span>' target/dependency-check-report.html
+                '''
+              }
+            }
+          }
+        }
+      }
+      }
+      post {
+        always {
+          archiveArtifacts artifacts: 'target/*.zip'
+          publishHTML(target: [
+            reportDir: 'target',
+            reportFiles: 'dependency-check-report.html',
+            reportName: 'Dependency check report',
+            escapeUnderscores: true
+          ])
+        }
+      }
+    }
+
+    stage('Release prepare') {
+      when {
+        expression { params.releaseVersion?.trim() }
+      }
+      steps {
+        withDockerContainer(image: 'docker-registry.ontotext.com/jenkins-builder:0.2-jdk25', args: "-w ${WORKSPACE}") {
+          withKeeper(credentials: env.KEEPER_CREDENTIALS, envs: [
+            [record: env.KEEPER_GIT_RELEASE_RECORD, prefix: 'GIT_RELEASE', fields: ['login']],
+            [record: env.KEEPER_NEXUS_RECORD, prefix: 'NEXUS', fields: ['login', 'password']]
+          ]) {
+            script {
+              def devArg = params.developmentVersion?.trim() ? "-DdevelopmentVersion=${params.developmentVersion}" : ""
+              withEnv([
+                "JAVA_HOME=/opt/java/openjdk",
+                "GIT_AUTHOR_NAME=${env.GIT_RELEASE_LOGIN}",
+                "GIT_AUTHOR_EMAIL=${env.GIT_RELEASE_LOGIN}@users.noreply.github.com",
+                "GIT_COMMITTER_NAME=${env.GIT_RELEASE_LOGIN}",
+                "GIT_COMMITTER_EMAIL=${env.GIT_RELEASE_LOGIN}@users.noreply.github.com"
+              ]) {
+                sh """
+                  shortBranch="\$(echo "\${GIT_BRANCH}" | sed 's|^origin/||')"
+                  git checkout -b "\${shortBranch}" 2>/dev/null || git checkout "\${shortBranch}"
+                  mvn -B \
+                    -Dmaven.repo.local=${WORKSPACE}/.m2/repository \
+                    -DreleaseVersion="${params.releaseVersion}" \
+                    ${devArg} \
+                    -DpushChanges=false \
+                    -Darguments="-DskipTests -Dnexus.username=\$NEXUS_LOGIN -Dnexus.password=\$NEXUS_PASSWORD" \
+                    release:prepare \
+                    -s ${WORKSPACE}/.m2/settings.xml
+                """
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Builds the tag from the LOCAL repository (localCheckout=true) and deploys it to Nexus.
+    stage('Release perform') {
+      when {
+        expression { params.releaseVersion?.trim() }
+      }
+      steps {
+        withDockerContainer(image: 'docker-registry.ontotext.com/jenkins-builder:0.2-jdk25', args: "-w ${WORKSPACE}") {
+          withKeeper(credentials: env.KEEPER_CREDENTIALS, envs: [
+            [record: env.KEEPER_NEXUS_RECORD, prefix: 'NEXUS', fields: ['login', 'password']]
+          ]) {
+            withEnv(['JAVA_HOME=/opt/java/openjdk']) {
+              sh """
+                mvn -B \
+                  -Dmaven.repo.local=${WORKSPACE}/.m2/repository \
+                  -DreleaseVersion="${params.releaseVersion}" \
+                  -DlocalCheckout=true \
+                  -Darguments="-DskipTests -Dnexus.username=\$NEXUS_LOGIN -Dnexus.password=\$NEXUS_PASSWORD" \
+                  release:perform \
+                  -s ${WORKSPACE}/.m2/settings.xml
+              """
+            }
+          }
+        }
+      }
+    }
+
+    // Pushes the release commits and tag from the agent over SSH, same as graphdb-workbench.
+    stage('Push to GitHub') {
+      when {
+        expression { params.releaseVersion?.trim() }
+      }
+      steps {
+        sh """
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          shortBranch="\$(echo "\${GIT_BRANCH}" | sed 's|^origin/||')"
+          git remote set-url origin git@github.com:Ontotext-AD/graphdb-proof-plugin.git
+          git push origin "HEAD:refs/heads/\${shortBranch}"
+          git push origin "refs/tags/${params.releaseVersion}"
+        """
+      }
+    }
+  }
+
+  post {
+    always {
+      script {
+        currentBuild.displayName = "${params.releaseVersion ?: 'unknown'}"
+      }
+    }
+    success {
+      slackSend(
+        channel: params.SLACK_CHANNEL,
+        color: 'good',
+        message: "proof-plugin release succeeded: version ${params.releaseVersion} ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+      )
+    }
+    unstable {
+      slackSend(
+        channel: params.SLACK_CHANNEL,
+        color: 'danger',
+        message: "proof-plugin release unstable: version ${params.releaseVersion} ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+      )
+    }
+    failure {
+      slackSend(
+        channel: params.SLACK_CHANNEL,
+        color: 'danger',
+        message: "proof-plugin release failed: version ${params.releaseVersion} ${env.JOB_NAME} #${env.BUILD_NUMBER}\n${env.BUILD_URL}"
+      )
+      script {
+        withDockerContainer(image: 'docker-registry.ontotext.com/jenkins-builder:0.2-jdk25', args: "-w ${WORKSPACE}") {
+          withKeeper(credentials: env.KEEPER_CREDENTIALS, envs: [
+            [record: env.KEEPER_GIT_RELEASE_RECORD, prefix: 'GIT_RELEASE', fields: ['login']]
+          ]) {
+            withEnv([
+              "JAVA_HOME=/opt/java/openjdk",
+              "GIT_AUTHOR_NAME=${env.GIT_RELEASE_LOGIN}",
+              "GIT_AUTHOR_EMAIL=${env.GIT_RELEASE_LOGIN}@users.noreply.github.com",
+              "GIT_COMMITTER_NAME=${env.GIT_RELEASE_LOGIN}",
+              "GIT_COMMITTER_EMAIL=${env.GIT_RELEASE_LOGIN}@users.noreply.github.com"
+            ]) {
+              sh '''
+                mvn -B -DpushChanges=false release:rollback -s ${WORKSPACE}/.m2/settings.xml
+                mvn -B release:clean -s ${WORKSPACE}/.m2/settings.xml
+              '''
+            }
+          }
+        }
+      }
+    }
+  }
+}

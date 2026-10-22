@@ -1,0 +1,136 @@
+@Library("ontotext-platform@v0.1.57") _
+
+pipeline {
+  agent { label 'aws-large' }
+
+  options {
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    timeout(time: 240, unit: 'MINUTES')
+    timestamps()
+  }
+
+  environment {
+    KEEPER_CREDENTIALS = 'ksm-jenkins'
+    KEEPER_NEXUS_RECORD = 'xRckZaBDxYhmpMgsaT4tCg'
+    KEEPER_M2_SETTINGS_RECORD = 'keeper://w6o5mGXWgN7zNvrr6K7QGQ/file/settings.xml'
+    KEEPER_NVD_API_KEY_RECORD = 'ejsvY-w_afWMP3gpKMJoOA'
+    CACHE_IMAGE = 'docker-registry.ontotext.com/mvn-dependency-check-cache:latest'
+  }
+
+  stages {
+    stage('Notify start') {
+      steps {
+        updateGitlabCommitStatus name: 'proof-plugin', state: 'running'
+      }
+    }
+
+    stage('Download Maven settings') {
+      steps {
+        withKsm(application: [[credentialsId: env.KEEPER_CREDENTIALS, secrets: [
+          [destination: 'file', envVar: '', filePath: 'settings.xml', notation: env.KEEPER_M2_SETTINGS_RECORD]
+        ]]]) {
+          sh """
+            mkdir -p ${env.WORKSPACE}/.m2
+            cp ${env.WORKSPACE}/settings.xml ${env.WORKSPACE}/.m2/settings.xml
+          """
+        }
+      }
+    }
+
+    stage('Build and Deploy') {
+      steps {
+        configFileProvider([configFile(fileId: '1d10db5e-7914-4a7a-bb32-f9b238b1e41c', targetLocation: 'graphdb-license-base64')]) {
+          withDockerContainer(image: 'docker-registry.ontotext.com/jenkins-builder:0.2-jdk25') {
+            withEnv(['JAVA_HOME=/opt/java/openjdk']) {
+              sh """
+                base64 -d < graphdb-license-base64 > graphdb.license
+                mvn clean deploy -U \\
+                  -Dmaven.repo.local=${env.WORKSPACE}/.m2/repository \\
+                  -Dgraphdb.license.file=${env.WORKSPACE}/graphdb.license \\
+                  -s ${env.WORKSPACE}/.m2/settings.xml
+              """
+            }
+        }
+      }
+      }
+      post {
+        always {
+          junit allowEmptyResults: true, testResults: '**/surefire-reports/*.xml'
+        }
+      }
+    }
+
+    stage('Extract NVD DB from cache image') {
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+          sh '''#!/usr/bin/env bash
+            set -euo pipefail
+            nvd_src="/root/.m2/repository/org/owasp/dependency-check-data"
+            mkdir -p "${WORKSPACE}/dependency-check-data"
+            docker pull "${CACHE_IMAGE}"
+            container_id=$(docker create "${CACHE_IMAGE}" true)
+            docker cp "${container_id}:${nvd_src}/." "${WORKSPACE}/dependency-check-data/"
+            docker rm -f "${container_id}"
+            ls -lh "${WORKSPACE}/dependency-check-data/"
+          '''
+        }
+      }
+    }
+
+    stage('Dependency check') {
+      steps {
+    	withDockerContainer(image: 'docker-registry.ontotext.com/jenkins-builder:0.2-jdk25') {
+         withKeeper(credentials: env.KEEPER_CREDENTIALS, envs: [
+            [record: env.KEEPER_NVD_API_KEY_RECORD, prefix: 'NVD_API_KEY', fields: ['note']]
+          ]) {
+      	  withEnv(['JAVA_HOME=/opt/java/openjdk']) {
+             sh """
+               mvn dependency-check:aggregate \\
+               -DnvdApiKey="\$NVD_API_KEY_NOTE" \\
+               -DdataDirectory=${env.WORKSPACE}/dependency-check-data \\
+               -Dmaven.repo.local=${env.WORKSPACE}/.m2/repository \\
+               -s ${env.WORKSPACE}/.m2/settings.xml
+       	     """
+           }
+         }
+       }
+       }
+    }
+
+    stage('Check vulnerabilities') {
+      steps {
+        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+          sh '''
+            ! grep -Eq '<span id="vulnerableCount">[1-9][0-9]*</span>' target/dependency-check-report.html
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'target/*.zip'
+      publishHTML(target: [
+        reportDir: 'target',
+        reportFiles: 'dependency-check-report.html',
+        reportName: 'Dependency check report',
+        escapeUnderscores: true
+      ])
+    }
+    success {
+      updateGitlabCommitStatus name: 'proof-plugin', state: 'success'
+    }
+    aborted {
+      updateGitlabCommitStatus name: 'proof-plugin', state: 'canceled'
+    }
+    unstable {
+      updateGitlabCommitStatus name: 'proof-plugin', state: 'failed'
+      sendMail(env.gitlabUserEmail)
+    }
+    failure {
+      updateGitlabCommitStatus name: 'proof-plugin', state: 'failed'
+      sendMail(env.gitlabUserEmail)
+    }
+  }
+}
