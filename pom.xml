@@ -4,15 +4,15 @@
 
 	<groupId>com.ontotext.graphdb.plugins</groupId>
 	<artifactId>proof-plugin</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<version>2.0-SNAPSHOT</version>
 	<name>Proof Plugin</name>
 	<description>Proof plugin for GraphDB</description>
 
 	<properties>
-		<graphdb.version>10.6.1</graphdb.version>
+		<graphdb.version>12.0.0-TR9</graphdb.version>
 
-		<java.level>1.8</java.level>
-		<dependency.check.version>6.2.2</dependency.check.version>
+		<java.level>25</java.level>
+		<dependency.check.version>12.1.0</dependency.check.version>
 
 		<internal.repo>https://maven.ontotext.com/content/repositories/owlim-releases</internal.repo>
 		<snapshots.repo>https://maven.ontotext.com/content/repositories/owlim-snapshots</snapshots.repo>
@@ -31,7 +31,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.8.1</version>
+				<version>3.15.0</version>
 				<configuration>
 					<source>${java.level}</source>
 					<target>${java.level}</target>
@@ -42,7 +42,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.0.0-M3</version>
+				<version>3.5.3</version>
 				<configuration>
 					<argLine>${argLine} ${extraArgLine}</argLine>
 					<systemPropertyVariables>
@@ -54,7 +54,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-release-plugin</artifactId>
-				<version>2.5.3</version>
+				<version>3.1.1</version>
 				<configuration>
 					<tagNameFormat>@{project.version}</tagNameFormat>
 				</configuration>
@@ -165,6 +165,13 @@
 			<version>4.13.1</version>
 			<scope>test</scope>
 		</dependency>
+        
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <version>6.1.3</version>
+            <scope>test</scope>
+        </dependency>
 	</dependencies>
 
 	<profiles>
@@ -224,11 +231,11 @@
 		</snapshotRepository>
 	</distributionManagement>
 
-	<scm>
-		<connection>scm:git:git@github.com:Ontotext-AD/graphdb-proof-plugin.git</connection>
-		<developerConnection>scm:git:git@github.com:Ontotext-AD/graphdb-proof-plugin.git</developerConnection>
-		<url>https://github.com/Ontotext-AD/graphdb-proof-plugin</url>
-	  <tag>HEAD</tag>
-  </scm>
+    <scm>
+            <connection>scm:git:git@github.com:Ontotext-AD/graphdb-proof-plugin.git</connection>
+            <developerConnection>scm:git:git@github.com:Ontotext-AD/graphdb-proof-plugin.git</developerConnection>
+            <url>https://github.com/Ontotext-AD/graphdb-proof-plugin</url>
+          <tag>HEAD</tag>
+      </scm>
 
 </project>
